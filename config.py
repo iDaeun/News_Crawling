@@ -8,8 +8,8 @@ with open(yaml_file, 'r') as yml:
 
 
 class TargetConfig:
-    BLOTER_REALTIME_SEARCH_KEYWORD = cfg['URL']['BLOTER_REALTIME_SEARCH_KEYWORD']
-    IFRAME = cfg['URL1']['IFRAME']
+    MAIN = cfg['URL']['MAIN']
+    IFRAME = cfg['URL']['IFRAME']
 
     DB_HOST = cfg['DB']['HOST']
     DB_USER = cfg['DB']['USER']

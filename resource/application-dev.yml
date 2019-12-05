@@ -1,7 +1,5 @@
 URL:
-  BLOTER_REALTIME_SEARCH_KEYWORD: https://newsstand.naver.com/?list=&pcode=293 # 블로터 
-
-URL1:
+  MAIN: https://newsstand.naver.com/?list=&pcode=293 # 블로터 
   IFRAME: https://newsstand.naver.com/include/page/293.html #iframe
 
 DB:
