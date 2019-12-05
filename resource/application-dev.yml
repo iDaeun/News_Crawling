@@ -1,3 +1,11 @@
 URL:
   BLOTER_REALTIME_SEARCH_KEYWORD: https://newsstand.naver.com/?list=&pcode=293 # 블로터 
-  
+
+URL1:
+  IFRAME: https://newsstand.naver.com/include/page/293.html #iframe
+
+DB:
+  HOST: localhost
+  USER: user
+  PW: Test1234@
+  DB: crawling

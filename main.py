@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import html5lib
 from datetime import datetime
 from urllib.parse import urlparse
+import pymysql
 
 # 실행 : python3 main.py --tg BLOTER_REALTIME_SEARCH_KEYWORD
 
@@ -23,6 +24,10 @@ def main(args):
                 source = html.read()
                 html.close()
                 soup = BeautifulSoup(source, "html5lib")
+
+                # DB저장
+                conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
+                curs = conn.cursor()
 
                 # 현재 시간
                 now = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -49,20 +54,16 @@ def main(args):
                         print("link: " + link.get('href'))
                         href = link.get('href')
                         parts = urlparse(href)
+                        id = parts.path.split('/')[2]
                         print("id: " + parts.path.split('/')[2])
-                    
-
-                # - sub news
-                # for links in soup1.find_all(class_="ns_bl_subnews_title"):
-                #     for link in links.find_all("a"):
-                #         print("title: " + link.get_text())
-                #         print("link: " + link.get('href'))
-                #         href = link.get('href')
-                #         parts = urlparse(href)
-                #         print("id: " + parts.path.split('/')[2])
+                
+                        sql = 'INSERT INTO crawlingDB (id, title, link, crawlingTime, publishedTime) VALUES (%s, %s, %s, now(), %s)'
+                        data = (id, link.get_text(), link.get('href'), publishedTime)
+                        curs.execute(sql, data)
+                        conn.commit()
 
             except:
-                logging.error("main erorr(2)")
+                logging.error("main error(2)")
 
 
 if __name__ == '__main__':
@@ -78,4 +79,4 @@ if __name__ == '__main__':
     try:
         main(args)
     except:
-        logging.error("main erorr(1)")
+        logging.error("main error(1)")
