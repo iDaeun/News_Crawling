@@ -35,44 +35,48 @@ def main(args):
 
                     id = str(uuid.uuid4())
 
-                    # 미디어 코드 var pcode = 000
+                    # 미디어 코드 (var pcode = 000)
                     test = soup.find_all('script')
                     match = re.search(r'var pcode = (.*);', test[len(test)-1].get_text())
-                    print(match)
-                    print(match.group(0).split("'")[1])
-
-                    # 크롤링 시간
-                    # now = datetime.now().strftime('%Y-%m-%d %H:%M')
-                    # print("크롤링 시간: " + now)
+                    # print(match)
+                    # print(match.group(0).split("'")[1])
+                    mediacode = match.group(0).split("'")[1]
 
                     # -- 데이터 추출 -- 
-                    # (1) 신문 발행 시간
-                    panel = soup.find(id="focusPanelCenter")
-                    publishedTime = panel.find(class_="fl").em.string
-                    #print("신문 발행 시간: " + publishedTime)
-
-                    # (2~4)데이터 : iframe으로 되어있기 때문에 url1 열기
+                    # iframe으로 되어있기 때문에 url1 열기
                     url1 = TargetConfig.IFRAME
                     html1 = urlopen(url1, context=context)
                     source1 = html1.read()
                     html1.close()
                     soup1 = BeautifulSoup(source1, "html5lib")
 
-                    # (2)(3)(4) 기사 id, title, link
+                    # (1)(2)(3) 기사 id, title, link
                     for links in soup1.find_all("div", {'class':["bl_topnews_txt", "ns_bl_subnews_title"]}): # - top news + sub news
-                        for link in links.find_all("a"):
-                            #print("title: " + link.get_text())
-                            #print("link: " + link.get('href'))
-                            href = link.get('href')
-                            parts = urlparse(href)
+                        for l in links.find_all("a"):
+                            #print("title: " + l.get_text())
+                            #print("link: " + l.get('href'))
+                            title = l.get_text()
+                            link = l.get('href')
+                            #print(link)
+
+                            # (4) 해당 기사 발행일 : 해당 기사 링크에 들어가서 확인해야함
+                            html2 = urlopen(link, context=context)
+                            source2 = html2.read()
+                            html2.close()
+                            soup2 = BeautifulSoup(source2, "html5lib")
+
+                            time = soup2.find(class_="publish") or soup2.find(class_="date")
+                            published_time = time.get_text()
+                            # print(time.get_text())
+
+                            parts = urlparse(link)
                             news_id = parts.path.split('/')[2]
                             #print("news_id: " + parts.path.split('/')[2])
-                    
-                            
-                            # sql = 'INSERT INTO crawlingDB (id, news_id, title, link, crawling_time, published_time) VALUES (%s, %s, %s, %s, now(), %s) ON DUPLICATE KEY UPDATE title = %s'
-                            # data = (id, news_id, link.get_text(), link.get('href'), publishedTime, link.get_text())
-                            # curs.execute(sql, data)
-                            # conn.commit()
+             
+                            sql = 'INSERT INTO crawlingDB (id, news_id, title, link, crawling_time, published_time, mediacode) VALUES (%s, %s, %s, %s, now(), %s, %s) ON DUPLICATE KEY UPDATE title = %s'
+                            data = (id, news_id, title, link, published_time, mediacode, title)
+                            curs.execute(sql, data)
+                            conn.commit()
 
                             # interval 5분으로 돌려보기
                             # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 5 MINUTE)'
