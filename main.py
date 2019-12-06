@@ -13,6 +13,14 @@ import re
 
 # 실행 : python3 main.py --tg BLOTER_REALTIME_SEARCH_KEYWORD
 
+def openurl(url):
+    context = ssl._create_unverified_context()
+    html = urlopen(url, context=context)
+    source = html.read()
+    html.close()
+
+    return BeautifulSoup(source, "html5lib")
+
 def main(args):
 
     print("-- crawling start --")
@@ -23,11 +31,7 @@ def main(args):
             try:
                 #loop = True
                 #while loop == True: 
-                    url = TargetConfig.MAIN
-                    html = urlopen(url, context=context)
-                    source = html.read()
-                    html.close()
-                    soup = BeautifulSoup(source, "html5lib")
+                    soup = openurl(TargetConfig.MAIN)
 
                     # DB저장
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
@@ -42,11 +46,7 @@ def main(args):
 
                     # -- 데이터 추출 -- 
                     # iframe으로 되어있기 때문에 url1 열기
-                    url1 = TargetConfig.IFRAME
-                    html1 = urlopen(url1, context=context)
-                    source1 = html1.read()
-                    html1.close()
-                    soup1 = BeautifulSoup(source1, "html5lib")
+                    soup1 = openurl(TargetConfig.IFRAME)
 
                     # (1)(2)(3) 기사 id, title, link
                     for links in soup1.find_all("div", {'class':["bl_topnews_txt", "ns_bl_subnews_title"]}): # - top news + sub news
@@ -55,10 +55,7 @@ def main(args):
                             link = l.get('href')
 
                             # (4) 해당 기사 발행일 : 해당 기사 링크에 들어가서 확인해야함
-                            html2 = urlopen(link, context=context)
-                            source2 = html2.read()
-                            html2.close()
-                            soup2 = BeautifulSoup(source2, "html5lib")
+                            soup2 = openurl(link)
 
                             time = soup2.find(class_="publish") or soup2.find(class_="date")
                             published_time = time.get_text()
@@ -71,7 +68,7 @@ def main(args):
                             print("title: " + title)
                             print("link: " + link)
                             print("published_time: " + published_time)
-                            print("news_id: "+ news_id)
+                            print("news_id: " + news_id)
                             print("~~~~~")
                             # ----------------
 
