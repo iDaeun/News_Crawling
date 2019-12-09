@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import pymysql
 import uuid
 import re
+from dateutil.parser import parse
 
 # 실행 : python3 main.py --tg BLOTER_REALTIME_SEARCH_KEYWORD
 
@@ -45,7 +46,7 @@ def main(args):
                     mediacode = match.group(0).split("'")[1]
 
                     # -- 데이터 추출 -- 
-                    # iframe으로 되어있기 때문에 url1 열기
+                    # iframe으로 되어있음
                     soup1 = openurl(TargetConfig.IFRAME)
 
                     # (1)(2)(3) 기사 id, title, link
@@ -57,8 +58,12 @@ def main(args):
                             # (4) 해당 기사 발행일 : 해당 기사 링크에 들어가서 확인해야함
                             soup2 = openurl(link)
 
-                            time = soup2.find(class_="publish") or soup2.find(class_="date")
-                            published_time = time.get_text()
+                            time = soup2.find("meta", property="article:published_time")
+                            getTime = time["content"]
+                            parsed = parse(getTime)
+                            d = parsed.date().strftime('%Y-%m-%d')
+                            t = parsed.time().strftime('%H:%M:%S')
+                            published_time = d + " " + t
 
                             parts = urlparse(link)
                             news_id = parts.path.split('/')[2]
