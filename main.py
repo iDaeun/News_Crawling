@@ -30,15 +30,13 @@ def main(args):
     for target in args.tg:
         if target == 'BLOTER_REALTIME_SEARCH_KEYWORD':
             try:
-                #loop = True
-                #while loop == True: 
+                loop = True
+                while loop == True: 
                     soup = openurl(TargetConfig.MAIN)
 
                     # DB저장
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
-
-                    
 
                     # 미디어 코드 (var pcode = 000)
                     test = soup.find_all('script')
@@ -70,7 +68,7 @@ def main(args):
                             published_time = d + " " + t
 
                             parts = urlparse(link)
-                            news_id = parts.path.split('/')[2]
+                            news_id = mediacode + "_" + parts.path.split('/')[2]
 
                             # ----- test -----
                             print("mediacode: " + mediacode)
@@ -87,10 +85,12 @@ def main(args):
                             curs.execute(sql, data)
                             conn.commit()
 
-                            # interval 5분으로 돌려보기
-                            # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 5 MINUTE)'
-                            # curs.execute(sql)
-                            # conn.commit()
+                            # interval 1분으로 돌려보기
+                            sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 10 SECOND)'
+                            result = curs.execute(sql)
+                            if result > 0:
+                                print("@@@@@@ deleted @@@@@@@")
+                            conn.commit()
                         
                     # sleep(30)
 
