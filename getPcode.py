@@ -35,19 +35,15 @@ def main():
 
         # pcode 추출
         pid = re.search(r'headlineList : (.*)', myScript.get_text()) 
-        pgrp = pid.group(1).split('"') #print(myCate.find('032').get_text())
+        pgrp = pid.group(1).split('"')
 
-        for r in range(3,len(pgrp)-5,+2):
-            print(" - key값 : "+pgrp[r])
-
-            # 언론사명 추출 2 '+pgrp[r]+'
+        for r in range(3,len(pgrp)-5,+2):          
+            # 언론사명 추출 2
             c1 = re.search(r'"pid":"' + pgrp[r] + '","name":"(.*?)"', myCate)
             c2 = c1.group().split('"')
-            print(" - value값 : "+c2[7])
-
-            dic = {pgrp[r]:c2[7]}
-            print(dic)
-            print("~~~~~~~~~~~")
+            # print(" - key값   : "+pgrp[r])
+            # print(" - value값 : "+c2[7])
+            # print("~~~~~~~~~~~")
 
             sql = 'INSERT INTO newsList (mediacode, news_name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE mediacode = %s'
             data = (pgrp[r], c2[7], pgrp[r])
