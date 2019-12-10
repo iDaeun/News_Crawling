@@ -5,6 +5,8 @@ from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import html5lib
 import re
+import pymysql
+from config import TargetConfig
 
 def main():
     print("~~~~~ start ~~~~~")
@@ -22,6 +24,10 @@ def main():
         soup = BeautifulSoup(source, "html5lib")
         script = soup.find_all('script')
         myScript = script[len(script)-1]
+
+        # DB저장
+        conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
+        curs = conn.cursor()
 
         # 언론사명 추출 1
         pressCategory = re.search(r'"ct1":(.*)', myScript.get_text())
@@ -42,6 +48,11 @@ def main():
             dic = {pgrp[r]:c2[7]}
             print(dic)
             print("~~~~~~~~~~~")
+
+            sql = 'INSERT INTO newsList (mediacode, news_name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE mediacode = %s'
+            data = (pgrp[r], c2[7], pgrp[r])
+            curs.execute(sql, data)
+            conn.commit()
 
     except:
         logging.error("main error(2)")
