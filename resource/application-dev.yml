@@ -1,6 +1,8 @@
 URL:
   MAIN: https://newsstand.naver.com/?list=&pcode=293 # 블로터 
-  IFRAME: https://newsstand.naver.com/include/page/293.html #iframe
+  #IFRAME: https://newsstand.naver.com/include/page/293.html #bloter
+  #IFRAME : https://newsstand.naver.com/include/page/990.html #주간조선
+  IFRAME: https://newsstand.naver.com/include/page/003.html #뉴시스
 
 DB:
   HOST: localhost
