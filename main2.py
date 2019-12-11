@@ -56,7 +56,7 @@ def main(args):
                         # 모든 기사제목 가져옴
                         for bl in soup1.find_all('a', target="_blank"):
                             
-                            # 3. 판 제목 [stand_title] 
+                            # 2. 판 제목 [stand_title] 
                             bl_title = bl.get_text().strip()
                             
                             # 이미지, 기사요약 --> 걸러내기
@@ -64,24 +64,20 @@ def main(args):
 
                                 print(len(bl_title))
 
-                                # 2. 아이디 [id]
-                                id = str(uuid.uuid4())
-                                print("난수 생성 : " + id)
-
                                 print("판 제목 : " + bl_title)
 
-                                # 4. 링크 [link]
+                                # 3. 링크 [link]
                                 bl_link = bl.get('href')
                                 print("링크 : " + bl_link)
 
                                 soup3 = openurl(bl_link)
                                 
-                                # 5. 기사 제목 [article_title] 
+                                # 4. 기사 제목 [article_title] 
                                 at = soup3.find("meta", property="og:title")
                                 article_title = at["content"]
                                 print("기사 제목 : " + article_title)
 
-                                # 6. 발행 시간 [published_time]
+                                # 5. 발행 시간 [published_time]
                                 if soup3.find("meta", property="article:published_time"):
 
                                     bl_time = soup3.find("meta", property="article:published_time")
@@ -93,20 +89,27 @@ def main(args):
 
                                     print("시간 : " + bl_published_time)
 
-                                    # 7. 카테고리 [category] 
+                                    # 6. 카테고리 [category] 
                                     section = soup3.find("meta", property="article:section")
                                     category = section["content"]
                                     print(category)
 
+                                    # 7. 기사 아이디 [article_id] 
+                                    dable = soup3.find("meta", property="dable:item_id")
+                                    article_id = dable["content"]
+                                    print("기사 아이디 : " + article_id)
+
                                     # DB 데이터삽입
-                                    sql = 'INSERT INTO crawlingDB (id, stand_title, article_title, link, crawling_time, published_time, mediacode, category) VALUES (%s, %s, %s, %s, now(), %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
-                                    data = (id, bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, bl_title)
+                                    sql = 'INSERT INTO crawlingDB ( stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+                                    data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
                                     curs.execute(sql, data)
                                     conn.commit()
                                 
                                 print("--------------------")
 
-                                
+                                # --- 추가 ::::
+                                # dable:item_id
+                                # merge --> 뉴스 아이디기준으로 할 수 있을듯???
 
                                 # # interval 1분으로 돌려보기
                                 # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
