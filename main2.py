@@ -52,13 +52,14 @@ def main(args):
                         addUrl = TargetConfig.IFRAME + cate[0] + '.html'
                         print("-- IFRAME 주소 만들기 : " + addUrl)
                         soup1 = openurl(addUrl)
-                        
+
                         # 모든 기사제목 가져옴
                         for bl in soup1.find_all('a', target="_blank"):
                             
-                            # 3. 제목 [title]
+                            # 3. 판 제목 [stand_title] 
                             bl_title = bl.get_text().strip()
                             
+                            # 이미지, 기사요약 --> 걸러내기
                             if len(bl_title) > 0 and len(bl_title) <= 50:
 
                                 print(len(bl_title))
@@ -67,18 +68,18 @@ def main(args):
                                 id = str(uuid.uuid4())
                                 print("난수 생성 : " + id)
 
-                                print("제목 : " + bl_title)
+                                print("판 제목 : " + bl_title)
 
                                 # 4. 링크 [link]
                                 bl_link = bl.get('href')
                                 print("링크 : " + bl_link)
 
-                                # 5. duplicate on (sql) 기준으로 잡을 기사 아이디 [news_id]
-                                parts = bl_link.split('/')
-                                bl_news_id = parts[len(parts)-1]
-                                print("아이디 : " + bl_news_id)
-
                                 soup3 = openurl(bl_link)
+                                
+                                # 5. 기사 제목 [article_title] 
+                                at = soup3.find("meta", property="og:title")
+                                article_title = at["content"]
+                                print("기사 제목 : " + article_title)
 
                                 # 6. 발행 시간 [published_time]
                                 if soup3.find("meta", property="article:published_time"):
@@ -87,25 +88,25 @@ def main(args):
                                     bl_getTime = bl_time["content"]
                                     bl_parsed = parse(bl_getTime)
                                     bl_d = bl_parsed.date().strftime('%Y-%m-%d')
-                                    # 만약 시간이 없으면 -> 00:00으로 출력
                                     bl_t = bl_parsed.time().strftime('%H:%M:%S')
                                     bl_published_time = bl_d + " " + bl_t
 
                                     print("시간 : " + bl_published_time)
+
+                                    # 7. 카테고리 [category] 
+                                    section = soup3.find("meta", property="article:section")
+                                    category = section["content"]
+                                    print(category)
+
+                                    # DB 데이터삽입
+                                    sql = 'INSERT INTO crawlingDB (id, stand_title, article_title, link, crawling_time, published_time, mediacode, category) VALUES (%s, %s, %s, %s, now(), %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+                                    data = (id, bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, bl_title)
+                                    curs.execute(sql, data)
+                                    conn.commit()
                                 
-                                else:
-                                    bl_published_time = '00:00'
-                                    print("시간 : -- none -- ")
-
-                                # 7. 카테고리 [category]
-
                                 print("--------------------")
 
-                                # DB 데이터삽입
-                                sql = 'INSERT INTO crawlingDB (id, news_id, title, link, crawling_time, published_time, mediacode) VALUES (%s, %s, %s, %s, now(), %s, %s) ON DUPLICATE KEY UPDATE title = %s'
-                                data = (id, bl_news_id, bl_title, bl_link, bl_published_time, bl_mediacode, bl_title)
-                                curs.execute(sql, data)
-                                conn.commit()
+                                
 
                                 # # interval 1분으로 돌려보기
                                 # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
