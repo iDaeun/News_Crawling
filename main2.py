@@ -3,7 +3,7 @@ import argparse
 import logging
 import ssl
 from config import TargetConfig
-from urllib.request import urlopen
+import urllib.request
 from bs4 import BeautifulSoup
 import html5lib
 from datetime import datetime
@@ -12,6 +12,7 @@ import pymysql
 import uuid
 import re
 from dateutil.parser import parse
+from urllib.error import URLError, HTTPError
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
 
@@ -28,14 +29,21 @@ def getTime(bl_time):
 
         return bl_published_time
 
-
 def openurl(url):
-    context = ssl._create_unverified_context()
-    html = urlopen(url, context=context)
+    # http형식
+
+    try:
+        # 403 방지
+        headers = {'User-Agent':'Chrome/66.0.3359.181'}
+        req = urllib.request.Request(url, headers=headers)
+        html = urllib.request.urlopen(req)
+
+    except HTTPError as e:
+        err = e.read()
+        code = e.getcode()
+
     source = html.read()
-    #print(source)
     html.close()
-    
 
     return BeautifulSoup(source, "html5lib")
 
@@ -54,7 +62,7 @@ def main(args):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsList WHERE idx > 391'
+                    sql = 'SELECT mediacode FROM newsListRequested WHERE idx = 9'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -134,7 +142,8 @@ def main(args):
                                                     article_id = dable["content"]
                                                     print("기사 아이디 : " + article_id)
                                                 else:
-                                                    article_id = "none"
+                                                    parts = bl_link.split('/')
+                                                    article_id = parts[len(parts)-1]
                                                     print("기사 아이디 : " + article_id)
                                                         
                                             else:
@@ -153,11 +162,6 @@ def main(args):
                                             print("기사 아이디 : " + article_id)
 
                                 print("--------------------")
-
-
-
-
-
 
                                             # --- test ---
                                             # print(len(bl_title))
