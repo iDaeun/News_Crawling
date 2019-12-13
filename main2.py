@@ -16,6 +16,32 @@ from urllib.error import URLError, HTTPError
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
 
+# 056 KBS
+# 분류 : var _TRK_CP = '^뉴스^사회';
+# 날짜 : <span class="txt-info"> <em class="date">입력 2019.12.13 (08:27)</em>
+def kbs(soup3):
+
+    # ---- 필터링 ----
+    if soup3.find("em", class_="date"):
+        date = soup3.find("em", class_="date").get_text()
+        
+        for text in soup3.find_all('script'):
+            if re.search(r'var _TRK_CP = (.*);', text.get_text()):
+                match = re.search(r'var _TRK_CP = (.*);', text.get_text())
+                cate2 = match.group(0).split("'")[1]
+        
+        li = [date, cate2]
+
+        return li
+
+# url -> 기사 아이디 추출
+def getId(bl_link):
+    parts = bl_link.split('/')
+    article_id = parts[len(parts)-1]
+    print("기사 아이디 : " + article_id)
+
+    return article_id
+
 def getTime(bl_time):
     if bl_time.get("content"):
         # bl_getTime = bl_time["content"]
@@ -42,7 +68,7 @@ def openurl(url):
         err = e.read()
         code = e.getcode()
 
-    source = html.read()
+    source = html.read().decode('utf-8')
     html.close()
 
     return BeautifulSoup(source, "html5lib")
@@ -62,7 +88,7 @@ def main(args):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested WHERE idx = 9'
+                    sql = 'SELECT mediacode FROM newsListRequested where idx = 2'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -96,6 +122,8 @@ def main(args):
                                     
                                     soup3 = openurl(bl_link)
 
+                                    # ---- 필터링 (1) ----
+
                                     # 4. 기사 제목 [article_title]
                                     # 포토 뉴스 --> 걸러내기 2
                                     if soup3.find("meta", property="og:title"):
@@ -103,6 +131,8 @@ def main(args):
                                         at = soup3.find("meta", property="og:title")
                                         article_title = at["content"]
                                         print("기사 제목 : " + article_title)
+
+                                        # ---- 필터링 (2) ----
 
                                         # 5. 발행 시간 [published_time]
                                         # 포토 뉴스 --> 걸러내기 3
@@ -130,7 +160,6 @@ def main(args):
                                                 else:
                                                     category = "none"
                                                     print("분류 : " + category)
-
                                             else:
                                                 category = "none"
                                                 print("분류 : " + category)
@@ -142,24 +171,29 @@ def main(args):
                                                     article_id = dable["content"]
                                                     print("기사 아이디 : " + article_id)
                                                 else:
-                                                    parts = bl_link.split('/')
-                                                    article_id = parts[len(parts)-1]
-                                                    print("기사 아이디 : " + article_id)
-                                                        
+                                                    article_id = getId(bl_link)    
                                             else:
-                                                parts = bl_link.split('/')
-                                                article_id = parts[len(parts)-1]
-                                                print("기사 아이디 : " + article_id)
+                                                article_id = getId(bl_link)
                                     
                                         else:
-                                            bl_published_time = "none2"
-                                            print("발행 시간 : " + bl_published_time)
 
-                                            category = "none2"
-                                            print("분류 : " + category)
+                                            # KBS 적용코드
+                                            if bl_mediacode == '056':
+                                                if not kbs(soup3) is None:
+                                                    bl_published_time = kbs(soup3)[0]
+                                                    category = kbs(soup3)[1]
+                                                    print("발행 시간 : " + bl_published_time)
+                                                    print("분류 : " + category)
+                                                
+                                            else:
 
-                                            article_id = "none2"
-                                            print("기사 아이디 : " + article_id)
+                                                bl_published_time = "none2"
+                                                print("발행 시간 : " + bl_published_time)
+
+                                                category = "none2"
+                                                print("분류 : " + category)
+
+                                            article_id = getId(bl_link)
 
                                 print("--------------------")
 
