@@ -13,9 +13,12 @@ import uuid
 import re
 from dateutil.parser import parse
 from urllib.error import URLError, HTTPError
+import requests
+import json
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
 
+# -- 언론사별 개별 코드 --
 # 056 KBS
 # 분류 : var _TRK_CP = '^뉴스^사회';
 # 날짜 : <span class="txt-info"> <em class="date">입력 2019.12.13 (08:27)</em>
@@ -34,6 +37,78 @@ def kbs(soup3):
 
         return li
 
+# 138 디지털데일리
+# 분류 : 없음
+# 날짜 : <p class="arvdate">2019.12.13 09:01:31 / 김도현
+def ddaily(soup3):
+
+    date = soup3.find("p", class_="arvdate").get_text().split('/')[0]
+    return [date, 'none']
+
+# 029 디지털타임스
+# 분류 : 없음
+# 날짜 : <script type="application/ld+json"> "dateModified": "2019-12-12T14:25:00+08:00"
+def dtimes(soup3):
+
+    date1 = soup3.find("script", type="application/ld+json").get_text()
+    date2 = (json.loads(date1))["datePublished"]
+    date3 = parseTime(date2)
+
+    return [date3, 'none']
+
+# 021 문화일보
+# 분류 : <a href=http://www.munhwa.com/news/section_list.html?sec=society&class=0 class=d14b_2F5>[사회]</a>
+# 날짜 : <td align="right">게재 일자 : 2019년 12월 13일(金)</td>
+def munhwa(soup3):
+
+    tds = soup3.find_all("td", align="right")
+    for td in tds:
+        if re.search(r'게재 일자 : (.*)', td.get_text()):
+            match = re.search(r'게재 일자 : (.*)', td.get_text())
+            date2 = match.group(0).split(":")[1]
+
+    cate = soup3.find("a", class_="d14b_2F5").get_text()
+
+    return [date2, cate]
+
+# 031 아이뉴스24
+# 분류 : inews-www-hover active
+def inews(soup3):
+
+    cate1 = soup3.find("a", {'class':["inews-www-hover active", "inews-www-hover  active"]})
+    cate2 = cate1.get_text().strip()
+
+    return cate2
+
+# 038 한국일보
+# 분류 :
+# 날짜 :
+def hkilbo(soup3):
+
+    # 1) 연예뉴스 <meta name="hk:nw_press" content="스타한국" />
+        # 분류 : <meta name="hk:nw_class" content="음악" />
+        # 날짜 : <meta name="hk:nw_newsoutdt" content="20191213131148" />
+    #print(soup3)
+    for metas in soup3.find_all('meta'):
+        #print(metas.attrs['content'])
+        if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_press':
+            print("comeeeeeeeeeee")
+            if metas.attrs['content'] == '스타한국':
+                print(metas.attrs['content'])
+                cate = '연예'
+            # 2) 포토갤러리
+            else:
+                return ['--', '포토갤러리']
+            
+            for metas in soup3.find_all('meta'):
+                if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_newsoutdt':
+                    print(metas.attrs['content'])
+                    date = metas.attrs['content']
+
+                    return [date, cate]
+
+# ----------------------
+
 # url -> 기사 아이디 추출
 def getId(bl_link):
     parts = bl_link.split('/')
@@ -41,6 +116,16 @@ def getId(bl_link):
     print("기사 아이디 : " + article_id)
 
     return article_id
+
+# 시간 추출
+def parseTime(bl_getTime):
+
+    bl_parsed = parse(bl_getTime)
+    bl_d = bl_parsed.date().strftime('%Y-%m-%d')
+    bl_t = bl_parsed.time().strftime('%H:%M:%S')
+    bl_published_time = bl_d + " " + bl_t
+
+    return bl_published_time
 
 def getTime(bl_time):
     if bl_time.get("content"):
@@ -55,24 +140,39 @@ def getTime(bl_time):
 
         return bl_published_time
 
+# url 열기
 def openurl(url):
+    
+    # https형식
+    if url[4] == 's':
+        context = ssl._create_unverified_context()
+        html = urllib.request.urlopen(url, context=context)
+        source = html.read()
+        html.close()
+    
+    else:
     # http형식
+        try:
+            print("들어옴??? -- 0")
+            # 403 방지
+            headers = {'User-Agent':'Chrome/66.0.3359.181'}
+            # req = urllib.request.Request(url, headers=headers)
+            # print(req)
+            # html = urllib.request.urlopen(req)
+            # print(html)
+            source = requests.get(url, headers=headers).content
 
-    try:
-        # 403 방지
-        headers = {'User-Agent':'Chrome/66.0.3359.181'}
-        req = urllib.request.Request(url, headers=headers)
-        html = urllib.request.urlopen(req)
+        except HTTPError as e:
+            err = e.read()
+            code = e.getcode()
+            print(code)
 
-    except HTTPError as e:
-        err = e.read()
-        code = e.getcode()
-
-    source = html.read().decode('utf-8')
-    html.close()
+        # source = html.read() # html.read().decpde('utf-8') --> 왜 에러?
+        # html.close()
 
     return BeautifulSoup(source, "html5lib")
 
+# ** main **
 def main(args):
 
     print("-- crawling start --")
@@ -88,7 +188,7 @@ def main(args):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested where idx = 2'
+                    sql = 'SELECT mediacode FROM newsListRequested where idx = 45'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -121,12 +221,14 @@ def main(args):
                                     print("링크 : " + bl_link)
                                     
                                     soup3 = openurl(bl_link)
+                                    print("들어옴??? -- 1")
 
                                     # ---- 필터링 (1) ----
 
                                     # 4. 기사 제목 [article_title]
                                     # 포토 뉴스 --> 걸러내기 2
                                     if soup3.find("meta", property="og:title"):
+                                        print("들어옴??? -- 2")
 
                                         at = soup3.find("meta", property="og:title")
                                         article_title = at["content"]
@@ -160,6 +262,12 @@ def main(args):
                                                 else:
                                                     category = "none"
                                                     print("분류 : " + category)
+
+                                            # 아이뉴스
+                                            elif bl_mediacode == '031':
+                                                    category = inews(soup3)
+                                                    print("분류 : " + category)
+                                            
                                             else:
                                                 category = "none"
                                                 print("분류 : " + category)
@@ -177,21 +285,51 @@ def main(args):
                                     
                                         else:
 
-                                            # KBS 적용코드
+                                            # KBS
                                             if bl_mediacode == '056':
                                                 if not kbs(soup3) is None:
                                                     bl_published_time = kbs(soup3)[0]
                                                     category = kbs(soup3)[1]
                                                     print("발행 시간 : " + bl_published_time)
                                                     print("분류 : " + category)
-                                                
+                                            
+                                            # 디지털데일리
+                                            if bl_mediacode == '138':
+                                                bl_published_time = ddaily(soup3)[0]
+                                                category = ddaily(soup3)[1]
+                                                print("발행 시간 : " + bl_published_time)
+                                                print("분류 : " + category)
+
+                                            # 디지털타임스
+                                            if bl_mediacode == '029':
+                                                bl_published_time = dtimes(soup3)[0]
+                                                category = dtimes(soup3)[1]
+                                                print("발행 시간 : " + bl_published_time)
+                                                print("분류 : " + category)
+                                            
+                                            # 문화일보
+                                            if bl_mediacode == '021':
+                                                bl_published_time = munhwa(soup3)[0]
+                                                category = munhwa(soup3)[1]
+                                                print("발행 시간 : " + bl_published_time)
+                                                print("분류 : " + category)
+                                            
+                                            # 한국일보
+                                            if bl_mediacode == '038':
+                                                bl_published_time = hkilbo(soup3)[0]
+                                                category = hkilbo(soup3)[1]
+                                                print("발행 시간 : " + bl_published_time)
+                                                print("분류 : " + category)
+                                               
                                             else:
 
                                                 bl_published_time = "none2"
                                                 print("발행 시간 : " + bl_published_time)
+                                                print("**** 시간 코드 만들어야함 :: " + bl_mediacode)
 
                                                 category = "none2"
                                                 print("분류 : " + category)
+                                                print("**** 카테고리 코드 만들어야함 :: " + bl_mediacode)
 
                                             article_id = getId(bl_link)
 
