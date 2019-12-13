@@ -15,6 +15,7 @@ from dateutil.parser import parse
 from urllib.error import URLError, HTTPError
 import requests
 import json
+from time import sleep
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
 
@@ -81,8 +82,6 @@ def inews(soup3):
     return cate2
 
 # 038 한국일보
-# 분류 :
-# 날짜 :
 def hkilbo(soup3):
 
     # 1) 연예뉴스 <meta name="hk:nw_press" content="스타한국" />
@@ -92,9 +91,7 @@ def hkilbo(soup3):
     for metas in soup3.find_all('meta'):
         #print(metas.attrs['content'])
         if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_press':
-            print("comeeeeeeeeeee")
             if metas.attrs['content'] == '스타한국':
-                print(metas.attrs['content'])
                 cate = '연예'
             # 2) 포토갤러리
             else:
@@ -102,7 +99,6 @@ def hkilbo(soup3):
             
             for metas in soup3.find_all('meta'):
                 if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_newsoutdt':
-                    print(metas.attrs['content'])
                     date = metas.attrs['content']
 
                     return [date, cate]
@@ -188,7 +184,7 @@ def main(args):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested where idx = 45'
+                    sql = 'SELECT mediacode FROM newsListRequested'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -323,17 +319,19 @@ def main(args):
                                                
                                             else:
 
-                                                bl_published_time = "none2"
-                                                print("발행 시간 : " + bl_published_time)
-                                                print("**** 시간 코드 만들어야함 :: " + bl_mediacode)
+                                                # bl_published_time = "none2"
+                                                # print("발행 시간 : " + bl_published_time)
+                                                # print("**** 시간 코드 만들어야함 :: " + bl_mediacode)
 
-                                                category = "none2"
-                                                print("분류 : " + category)
-                                                print("**** 카테고리 코드 만들어야함 :: " + bl_mediacode)
+                                                # category = "none2"
+                                                # print("분류 : " + category)
+                                                # print("**** 카테고리 코드 만들어야함 :: " + bl_mediacode)
 
-                                            article_id = getId(bl_link)
+                                                article_id = getId(bl_link)
 
                                 print("--------------------")
+                    curs.close()
+                    sleep(1)
 
                                             # --- test ---
                                             # print(len(bl_title))
@@ -359,7 +357,7 @@ def main(args):
                                                 #     print("@@@@@@ deleted @@@@@@@")
                                                 # conn.commit()
                     
-                    curs.close()
+                    
 
                     # sleep(30)
 
