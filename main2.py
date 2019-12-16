@@ -16,6 +16,7 @@ from urllib.error import URLError, HTTPError
 import requests
 import json
 from time import sleep
+import logging
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
 
@@ -103,59 +104,93 @@ def hkilbo(soup3):
 
                     return [date, cate]
 
+# 022 세계일보
+def segye(bl_time):
+    bl_parsed = bl_time["content"]
+    print(bl_parsed)
+    parts1 = bl_parsed.split('T')
+    yr = parts1[0]
+    parts2 = parts1[1].split('+')
+    time = parts2[0]
+
+    return yr + " " + time
+
+# 903 채널에이
+# 날짜: <span class="date"><span>[채널A]</span> 2019-12-16 13:23</span>
+# 분류: 
+def channelA(soup3):
+    date1 = soup3.find("span", class_="date").get_text()
+    date2 = date1.split(']')[1]
+
+    return [date2, 'none']
+
 # ----------------------
 
 # url -> 기사 아이디 추출
 def getId(bl_link):
     parts = bl_link.split('/')
     article_id = parts[len(parts)-1]
-    print("기사 아이디 : " + article_id)
 
     return article_id
 
 # 시간 추출
 def parseTime(bl_getTime):
 
-    bl_parsed = parse(bl_getTime)
-    bl_d = bl_parsed.date().strftime('%Y-%m-%d')
-    bl_t = bl_parsed.time().strftime('%H:%M:%S')
-    bl_published_time = bl_d + " " + bl_t
+    try:
+        bl_parsed = parse(bl_getTime)
+        bl_d = bl_parsed.date().strftime('%Y-%m-%d')
+        bl_t = bl_parsed.time().strftime('%H:%M:%S')
+        bl_published_time = bl_d + " " + bl_t
 
-    return bl_published_time
+        return bl_published_time
+    
+    except:
+        return "none"
 
 def getTime(bl_time):
     if bl_time.get("content"):
-        # bl_getTime = bl_time["content"]
-        # bl_parsed = parse(bl_getTime)
-        # bl_d = bl_parsed.date().strftime('%Y-%m-%d')
-        # bl_t = bl_parsed.time().strftime('%H:%M:%S')
-        
-        # bl_published_time = bl_d + " " + bl_t
-        bl_published_time = bl_time["content"]
-        print("발행 시간 : " + bl_published_time)
+        bl_published_time = parseTime(bl_time["content"])
 
         return bl_published_time
+    
+    else:
+        return "none"
 
 # url 열기
 def openurl(url):
     
     # https형식
     if url[4] == 's':
-        context = ssl._create_unverified_context()
-        html = urllib.request.urlopen(url, context=context)
-        source = html.read()
-        html.close()
-    
+        try:
+            print("들어옴??? -- https")
+            context = ssl._create_unverified_context()
+            html = urllib.request.urlopen(url, context=context)
+            source = html.read()
+            html.close()
+        except HTTPError as e:
+            err = e.read()
+            code = e.getcode()
+            print(code)
+            print("refresh URL")
+            # 504 방지
+            if code == 504:
+                attempts = True
+                while attempts:
+                    try: 
+                        context = ssl._create_unverified_context()
+                        html = urllib.request.urlopen(url, context=context)
+                        source = html.read()
+                        html.close()
+                        attempts = False
+                    except:
+                        logging.info("504 error")
+
     else:
     # http형식
         try:
-            print("들어옴??? -- 0")
+            print("들어옴??? -- http")
             # 403 방지
             headers = {'User-Agent':'Chrome/66.0.3359.181'}
-            # req = urllib.request.Request(url, headers=headers)
-            # print(req)
-            # html = urllib.request.urlopen(req)
-            # print(html)
             source = requests.get(url, headers=headers).content
 
         except HTTPError as e:
@@ -163,13 +198,10 @@ def openurl(url):
             code = e.getcode()
             print(code)
 
-        # source = html.read() # html.read().decpde('utf-8') --> 왜 에러?
-        # html.close()
-
     return BeautifulSoup(source, "html5lib")
 
 # ** main **
-def main(args):
+def main(args, logger):
 
     print("-- crawling start --")
     context = ssl._create_unverified_context()
@@ -184,7 +216,7 @@ def main(args):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested'
+                    sql = 'SELECT mediacode FROM newsListRequested where idx = 7 or idx = 38'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -217,14 +249,12 @@ def main(args):
                                     print("링크 : " + bl_link)
                                     
                                     soup3 = openurl(bl_link)
-                                    print("들어옴??? -- 1")
 
                                     # ---- 필터링 (1) ----
 
                                     # 4. 기사 제목 [article_title]
                                     # 포토 뉴스 --> 걸러내기 2
                                     if soup3.find("meta", property="og:title"):
-                                        print("들어옴??? -- 2")
 
                                         at = soup3.find("meta", property="og:title")
                                         article_title = at["content"]
@@ -238,7 +268,7 @@ def main(args):
 
                                             if soup3.find("meta", property="article:published_time"):
                                                 bl_time = soup3.find("meta", property="article:published_time")
-                                                bl_published_time = getTime(bl_time)
+                                                bl_published_time = segye(bl_time) if bl_mediacode == '022' else getTime(bl_time)
                                             
                                             elif soup3.find("meta", property="article:published"):
                                                 bl_time = soup3.find("meta", property="article:published")
@@ -251,34 +281,36 @@ def main(args):
                                             # 6. 카테고리 [category] 
                                             if soup3.find("meta", property="article:section"):
                                                 section = soup3.find("meta", property="article:section")
-
-                                                if section.get("content"):
-                                                    category = section["content"]
-                                                    print("분류 : " + category)
-                                                else:
-                                                    category = "none"
-                                                    print("분류 : " + category)
+                                                
+                                                category = section["content"] if section.get("content") else "none"
 
                                             # 아이뉴스
                                             elif bl_mediacode == '031':
                                                     category = inews(soup3)
-                                                    print("분류 : " + category)
                                             
                                             else:
                                                 category = "none"
-                                                print("분류 : " + category)
                                                 
                                             # 7. 기사 아이디 [article_id]
                                             if soup3.find("meta", property="dable:item_id") or soup3.find("meta", name_="articleid"):
                                                 dable = soup3.find("meta", property="dable:item_id") or soup3.find("meta", name_="articleid")
-                                                if dable.get("content"):
-                                                    article_id = dable["content"]
-                                                    print("기사 아이디 : " + article_id)
-                                                else:
-                                                    article_id = getId(bl_link)    
+                                                
+                                                article_id = dable["content"] if dable.get("content") else getId(bl_link)
+
                                             else:
                                                 article_id = getId(bl_link)
-                                    
+
+                                            print("발행 시간 : " + bl_published_time)
+                                            print("분류 : " + category)
+                                            print("기사 아이디 : " + article_id)
+
+                                            # DB 데이터삽입
+                                            # sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+                                            # data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
+                                            # curs.execute(sql, data)
+                                            # print("@@ 데이터 입력 @@")
+                                            # conn.commit()
+
                                         else:
 
                                             # KBS
@@ -286,36 +318,31 @@ def main(args):
                                                 if not kbs(soup3) is None:
                                                     bl_published_time = kbs(soup3)[0]
                                                     category = kbs(soup3)[1]
-                                                    print("발행 시간 : " + bl_published_time)
-                                                    print("분류 : " + category)
                                             
                                             # 디지털데일리
                                             if bl_mediacode == '138':
                                                 bl_published_time = ddaily(soup3)[0]
                                                 category = ddaily(soup3)[1]
-                                                print("발행 시간 : " + bl_published_time)
-                                                print("분류 : " + category)
 
                                             # 디지털타임스
                                             if bl_mediacode == '029':
                                                 bl_published_time = dtimes(soup3)[0]
                                                 category = dtimes(soup3)[1]
-                                                print("발행 시간 : " + bl_published_time)
-                                                print("분류 : " + category)
                                             
                                             # 문화일보
                                             if bl_mediacode == '021':
                                                 bl_published_time = munhwa(soup3)[0]
                                                 category = munhwa(soup3)[1]
-                                                print("발행 시간 : " + bl_published_time)
-                                                print("분류 : " + category)
                                             
                                             # 한국일보
                                             if bl_mediacode == '038':
                                                 bl_published_time = hkilbo(soup3)[0]
                                                 category = hkilbo(soup3)[1]
-                                                print("발행 시간 : " + bl_published_time)
-                                                print("분류 : " + category)
+                                            
+                                            # 채널A
+                                            if bl_mediacode == '903':
+                                                bl_published_time = channelA(soup3)[0]
+                                                category = channelA(soup3)[1]
                                                
                                             else:
 
@@ -329,26 +356,21 @@ def main(args):
 
                                                 article_id = getId(bl_link)
 
-                                print("--------------------")
-                    curs.close()
-                    sleep(1)
-
-                                            # --- test ---
-                                            # print(len(bl_title))
-                                            # print("기사 아이디 : " + article_id)
-                                            # print("판 제목 : " + bl_title)
-                                            # print("기사 제목 : " + article_title)
-                                            # print("발행 시간 : " + bl_published_time)
-                                            # print("링크 : " + bl_link)
-                                            # print("분류 : " + category)
+                                            print("발행 시간 : " + bl_published_time)
+                                            print("분류 : " + category)
+                                            print("기사 아이디 : " + article_id)
 
                                             # DB 데이터삽입
                                             # sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
                                             # data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
                                             # curs.execute(sql, data)
+                                            # print("@@ 데이터 입력 @@")
                                             # conn.commit()
-                                                    
-                                            
+
+                                print("--------------------")
+
+                    curs.close()
+                    #sleep(60)
 
                                                 # # interval 1분으로 돌려보기
                                                 # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
@@ -357,19 +379,22 @@ def main(args):
                                                 #     print("@@@@@@ deleted @@@@@@@")
                                                 # conn.commit()
                     
-                    
-
-                    # sleep(30)
-
             except:
-                logging.error("main error(2)")
+                logger.error("main error(2)")
 
 
 if __name__ == '__main__':
 
-    # start time
     # logger
+    logger = logging.getLogger("log")
+    logger.setLevel(logging.INFO)
+    handler= logging.StreamHandler()
     
+    formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s:%(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    logger.info("server start!")
 
     # parser
     parser = argparse.ArgumentParser()
@@ -377,6 +402,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
-        main(args)
+        main(args, logger)
     except:
-        logging.error("main error(1)")
+        logger.error("main error(1)")

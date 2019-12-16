@@ -1,3 +1,4 @@
+# 블로터 사이트 크롤링
 import argparse
 import logging
 import ssl
@@ -30,8 +31,8 @@ def main(args):
     for target in args.tg:
         if target == 'BLOTER_REALTIME_SEARCH_KEYWORD':
             try:
-                loop = True
-                while loop == True: 
+                # loop = True
+                # while loop == True: 
                     soup = openurl(TargetConfig.MAIN)
 
                     # DB저장
@@ -71,26 +72,26 @@ def main(args):
                             news_id = mediacode + "_" + parts.path.split('/')[2]
 
                             # ----- test -----
-                            print("mediacode: " + mediacode)
-                            print("title: " + title)
-                            print("link: " + link)
-                            print("published_time: " + published_time)
-                            print("news_id: " + news_id)
-                            print("~~~~~")
+                            # print("mediacode: " + mediacode)
+                            # print("title: " + title)
+                            # print("link: " + link)
+                            # print("published_time: " + published_time)
+                            # print("news_id: " + news_id)
+                            # print("~~~~~")
                             # ----------------
 
-                            # DB 데이터삽입
-                            sql = 'INSERT INTO crawlingDB (id, news_id, title, link, crawling_time, published_time, mediacode) VALUES (%s, %s, %s, %s, now(), %s, %s) ON DUPLICATE KEY UPDATE title = %s'
-                            data = (id, news_id, title, link, published_time, mediacode, title)
-                            curs.execute(sql, data)
-                            conn.commit()
+                            # # DB 데이터삽입
+                            # sql = 'INSERT INTO crawlingDB (id, news_id, title, link, crawling_time, published_time, mediacode) VALUES (%s, %s, %s, %s, now(), %s, %s) ON DUPLICATE KEY UPDATE title = %s'
+                            # data = (id, news_id, title, link, published_time, mediacode, title)
+                            # curs.execute(sql, data)
+                            # conn.commit()
 
-                            # interval 1분으로 돌려보기
-                            sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 10 SECOND)'
-                            result = curs.execute(sql)
-                            if result > 0:
-                                print("@@@@@@ deleted @@@@@@@")
-                            conn.commit()
+                            # # interval 1분으로 돌려보기
+                            # sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
+                            # result = curs.execute(sql)
+                            # if result > 0:
+                            #     print("@@@@@@ deleted @@@@@@@")
+                            # conn.commit()
                         
                     # sleep(30)
 
