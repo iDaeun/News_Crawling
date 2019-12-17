@@ -34,8 +34,9 @@ def kbs(soup3):
             if re.search(r'var _TRK_CP = (.*);', text.get_text()):
                 match = re.search(r'var _TRK_CP = (.*);', text.get_text())
                 cate2 = match.group(0).split("'")[1]
+                cate3 = cate2.split("^")[2]
         
-        li = [date, cate2]
+        li = [date, cate3]
 
         return li
 
@@ -123,6 +124,19 @@ def channelA(soup3):
     date2 = date1.split(']')[1]
 
     return [date2, 'none']
+
+# 079 노컷뉴스
+def nocut(soup3):
+    for metas in soup3.find_all('meta'):
+        if 'name' in metas.attrs and metas.attrs['name'] == 'article:section':
+            cate = metas.attrs['content']
+        if 'name' in metas.attrs and metas.attrs['name'] == 'article:published_time':
+            date1 = metas.attrs['content']
+            date2 = parseTime(date1)
+        if 'name' in metas.attrs and metas.attrs['name'] == "dable:item_id":
+            id = metas.attrs['content']
+        
+    return [date2, cate, id]
 
 # ----------------------
 
@@ -216,7 +230,7 @@ def main(args, logger):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested where idx = 7 or idx = 38'
+                    sql = 'SELECT mediacode FROM newsListRequested'
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
@@ -278,15 +292,18 @@ def main(args, logger):
                                                 bl_time = soup3.find("meta", itemprop="datePublished")
                                                 bl_published_time = getTime(bl_time)
 
-                                            # 6. 카테고리 [category] 
-                                            if soup3.find("meta", property="article:section"):
+                                            # 6. 카테고리 [category]
+                                            if soup3.find("meta", property="article:section2"):
+                                                section = soup3.find("meta", property="article:section2")
+                                                category = section["content"]
+
+                                            elif soup3.find("meta", property="article:section"):
                                                 section = soup3.find("meta", property="article:section")
-                                                
                                                 category = section["content"] if section.get("content") else "none"
 
                                             # 아이뉴스
                                             elif bl_mediacode == '031':
-                                                    category = inews(soup3)
+                                                category = inews(soup3)
                                             
                                             else:
                                                 category = "none"
@@ -305,11 +322,11 @@ def main(args, logger):
                                             print("기사 아이디 : " + article_id)
 
                                             # DB 데이터삽입
-                                            # sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
-                                            # data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
-                                            # curs.execute(sql, data)
-                                            # print("@@ 데이터 입력 @@")
-                                            # conn.commit()
+                                            sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+                                            data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
+                                            curs.execute(sql, data)
+                                            print("@@ 데이터 입력 @@")
+                                            conn.commit()
 
                                         else:
 
@@ -343,7 +360,13 @@ def main(args, logger):
                                             if bl_mediacode == '903':
                                                 bl_published_time = channelA(soup3)[0]
                                                 category = channelA(soup3)[1]
-                                               
+
+                                            # 노컷뉴스
+                                            if bl_mediacode == '079':
+                                                bl_published_time = nocut(soup3)[0]
+                                                category = nocut(soup3)[1]
+                                                article_id = nocut(soup3)[2]
+
                                             else:
 
                                                 # bl_published_time = "none2"
@@ -361,11 +384,11 @@ def main(args, logger):
                                             print("기사 아이디 : " + article_id)
 
                                             # DB 데이터삽입
-                                            # sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
-                                            # data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
-                                            # curs.execute(sql, data)
-                                            # print("@@ 데이터 입력 @@")
-                                            # conn.commit()
+                                            sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+                                            data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
+                                            curs.execute(sql, data)
+                                            print("@@ 데이터 입력 @@")
+                                            conn.commit()
 
                                 print("--------------------")
 
