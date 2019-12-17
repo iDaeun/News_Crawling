@@ -8,7 +8,6 @@ with open(yaml_file, 'r') as yml:
 
 
 class TargetConfig:
-    MAIN = cfg['URL']['MAIN']
     IFRAME = cfg['URL']['IFRAME']
 
     DB_HOST = cfg['DB']['HOST']

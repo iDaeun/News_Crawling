@@ -1,10 +1,14 @@
-from dateutil.parser import parse
+import ssl
+from bs4 import BeautifulSoup
+import urllib.request
 
-bl_getTime = '2019-12-12T41:25+09:00'
+html = "https://www.edaily.co.kr/news/contents/NewsStand/vbs_real/brg.asp?bCode=G04pt&sgb=E&newsid=G36079"
 
-bl_parsed = parse(bl_getTime)
-bl_d = bl_parsed.date().strftime('%Y-%m-%d')
-bl_t = bl_parsed.time().strftime('%H:%M:%S')
-        
-bl_published_time = bl_d + " " + bl_t
-print("발행 시간 : " + bl_published_time)
+context = ssl._create_unverified_context()
+html = urllib.request.urlopen(html, context=context)
+source = html.read()
+html.close()
+soup = BeautifulSoup(source, "html5lib")
+
+txt = soup.find_all("meta")
+print(txt)
