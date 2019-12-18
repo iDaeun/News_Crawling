@@ -17,134 +17,9 @@ import requests
 import json
 from time import sleep
 import logging
+import media
 
 # 실행 : python3 main2.py --tg CRAWLIMG_ALL_WEBSITES
-
-# -- 언론사별 개별 코드 --
-# 056 KBS
-# 분류 : var _TRK_CP = '^뉴스^사회';
-# 날짜 : <span class="txt-info"> <em class="date">입력 2019.12.13 (08:27)</em>
-def kbs(soup3):
-
-    # ---- 필터링 ----
-    if soup3.find("em", class_="date"):
-        date1 = soup3.find("em", class_="date").get_text()
-        date2 = date1.split(" ")[1] 
-        date3 = re.findall('\(([^)]+)', date1.split(" ")[2])
-        date4 = date2 + " " + date3[0] + ":00"
-        
-        for text in soup3.find_all('script'):
-            if re.search(r'var _TRK_CP = (.*);', text.get_text()):
-                match = re.search(r'var _TRK_CP = (.*);', text.get_text())
-                cate2 = match.group(0).split("'")[1]
-                cate3 = cate2.split("^")[2]
-                if len(cate3) == 0:
-                    cate3 = cate2.split("^")[1]
-        
-        li = [date4, cate3]
-
-        return li
-
-# 138 디지털데일리
-# 분류 : 없음
-# 날짜 : <p class="arvdate">2019.12.13 09:01:31 / 김도현
-def ddaily(soup3):
-
-    date = soup3.find("p", class_="arvdate").get_text().split('/')[0]
-    return [date, 'none']
-
-# 029 디지털타임스
-# 분류 : 없음
-# 날짜 : <script type="application/ld+json"> "dateModified": "2019-12-12T14:25:00+08:00"
-def dtimes(soup3):
-
-    date1 = soup3.find("script", type="application/ld+json").get_text()
-    date2 = (json.loads(date1))["datePublished"]
-    date3 = parseTime(date2)
-
-    return [date3, 'none']
-
-# 021 문화일보
-# 분류 : <a href=http://www.munhwa.com/news/section_list.html?sec=society&class=0 class=d14b_2F5>[사회]</a>
-# 날짜 : <td align="right">게재 일자 : 2019년 12월 13일(金)</td>
-def munhwa(soup3):
-
-    tds = soup3.find_all("td", align="right")
-    for td in tds:
-        if re.search(r'게재 일자 : (.*)', td.get_text()):
-            match = re.search(r'게재 일자 : (.*)', td.get_text())
-            date2 = match.group(0).split(":")[1]
-
-    cate1 = soup3.find("a", class_="d14b_2F5").get_text()
-    cate2 = cate1.split("[")[1].split(']')[0]
-
-    return [date2, cate2]
-
-# 031 아이뉴스24
-# 분류 : inews-www-hover active
-def inews(soup3):
-
-    cate1 = soup3.find("a", {'class':["inews-www-hover active", "inews-www-hover  active"]})
-    cate2 = cate1.get_text().strip()
-
-    return cate2
-
-# 038 한국일보
-def hkilbo(soup3):
-
-    # 1) 연예뉴스 <meta name="hk:nw_press" content="스타한국" />
-        # 분류 : <meta name="hk:nw_class" content="음악" />
-        # 날짜 : <meta name="hk:nw_newsoutdt" content="20191213131148" />
-    #print(soup3)
-    for metas in soup3.find_all('meta'):
-        if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_press':
-            if metas.attrs['content'] == '스타한국':
-                cate = '연예'
-            # 2) 포토갤러리
-            else:
-                return ['--', '포토갤러리']
-            
-            for metas in soup3.find_all('meta'):
-                if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_newsoutdt':
-                    date1 = metas.attrs['content']
-                    date2 = date1[0:4] + "-" + date1[4:6] + "-" + date1[6:8] + " " + date1[8:10] + ":" + date1[10:12] + ":" + date1[12:]
-
-                    return [date2, cate]
-
-# 022 세계일보
-def segye(bl_time):
-    bl_parsed = bl_time["content"]
-    print(bl_parsed)
-    parts1 = bl_parsed.split('T')
-    yr = parts1[0]
-    parts2 = parts1[1].split('+')
-    time = parts2[0]
-
-    return yr + " " + time
-
-# 903 채널에이
-# 날짜: <span class="date"><span>[채널A]</span> 2019-12-16 13:23</span>
-# 분류: 
-def channelA(soup3):
-    date1 = soup3.find("span", class_="date").get_text()
-    date2 = date1.split(']')[1] + ":00"
-
-    return [date2, 'none']
-
-# 079 노컷뉴스
-def nocut(soup3):
-    for metas in soup3.find_all('meta'):
-        if 'name' in metas.attrs and metas.attrs['name'] == 'article:section':
-            cate = metas.attrs['content']
-        if 'name' in metas.attrs and metas.attrs['name'] == 'article:published_time':
-            date1 = metas.attrs['content']
-            date2 = parseTime(date1)
-        if 'name' in metas.attrs and metas.attrs['name'] == "dable:item_id":
-            id = metas.attrs['content']
-        
-    return [date2, cate, id]
-
-# ----------------------
 
 # url -> 기사 아이디 추출
 def getId(bl_link):
@@ -190,10 +65,11 @@ def openurl(url):
         except HTTPError as e:
             err = e.read()
             code = e.getcode()
-            print(code)
-            print("refresh URL")
+            print("HTTP ERROR >>>> " + code)
+            
             # 504 방지
             if code == 504:
+                print("refresh URL")
                 attempts = True
                 while attempts:
                     try: 
@@ -228,6 +104,7 @@ def insert(conn, curs, bl_title, article_title, bl_link, bl_published_time, bl_m
     curs.execute(sql, data)
     print("@@ 데이터 입력 @@")
     conn.commit()
+    sleep(1)
 
 # ** main **
 def main(args, logger):
@@ -300,7 +177,7 @@ def main(args, logger):
 
                                             if soup3.find("meta", property="article:published_time"):
                                                 bl_time = soup3.find("meta", property="article:published_time")
-                                                bl_published_time = segye(bl_time) if bl_mediacode == '022' else getTime(bl_time)
+                                                bl_published_time = media.segye(bl_time) if bl_mediacode == '022' else getTime(bl_time)
                                             
                                             elif soup3.find("meta", property="article:published"):
                                                 bl_time = soup3.find("meta", property="article:published")
@@ -325,7 +202,7 @@ def main(args, logger):
 
                                             # 아이뉴스
                                             elif bl_mediacode == '031':
-                                                category = inews(soup3)
+                                                category = media.inews(soup3)
                                             
                                             else:
                                                 category = "none"
@@ -345,53 +222,53 @@ def main(args, logger):
 
                                             # DB 데이터삽입
                                             insert(conn, curs, bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id)
-
+                                            
                                         else:
 
                                             db = False
 
                                             # KBS
                                             if bl_mediacode == '056':
-                                                if not kbs(soup3) is None:
-                                                    bl_published_time = kbs(soup3)[0]
-                                                    category = kbs(soup3)[1]
+                                                if media.kbs(soup3) is not None:
+                                                    bl_published_time = media.kbs(soup3)[0]
+                                                    category = media.kbs(soup3)[1]
                                                     db = True
                                             
                                             # 디지털데일리
                                             if bl_mediacode == '138':
-                                                bl_published_time = ddaily(soup3)[0]
-                                                category = ddaily(soup3)[1]
+                                                bl_published_time = media.ddaily(soup3)[0]
+                                                category = media.ddaily(soup3)[1]
                                                 db = True
 
                                             # 디지털타임스
                                             if bl_mediacode == '029':
-                                                bl_published_time = dtimes(soup3)[0]
-                                                category = dtimes(soup3)[1]
+                                                bl_published_time = media.dtimes(soup3)[0]
+                                                category = media.dtimes(soup3)[1]
                                                 db = True
                                             
                                             # 문화일보
                                             if bl_mediacode == '021':
-                                                bl_published_time = munhwa(soup3)[0]
-                                                category = munhwa(soup3)[1]
+                                                bl_published_time = media.munhwa(soup3)[0]
+                                                category = media.munhwa(soup3)[1]
                                                 db = True
                                             
                                             # 한국일보
                                             if bl_mediacode == '038':
-                                                bl_published_time = hkilbo(soup3)[0]
-                                                category = hkilbo(soup3)[1]
+                                                bl_published_time = media.hkilbo(soup3)[0]
+                                                category = media.hkilbo(soup3)[1]
                                                 db = True
                                             
                                             # 채널A
                                             if bl_mediacode == '903':
-                                                bl_published_time = channelA(soup3)[0]
-                                                category = channelA(soup3)[1]
+                                                bl_published_time = media.channelA(soup3)[0]
+                                                category = media.channelA(soup3)[1]
                                                 db = True
 
                                             # 노컷뉴스
                                             if bl_mediacode == '079':
-                                                bl_published_time = nocut(soup3)[0]
-                                                category = nocut(soup3)[1]
-                                                article_id = nocut(soup3)[2]
+                                                bl_published_time = media.nocut(soup3)[0]
+                                                category = media.nocut(soup3)[1]
+                                                article_id = media.nocut(soup3)[2]
                                                 db = True
 
                                             if db == True:
@@ -419,8 +296,8 @@ def main(args, logger):
 
                     curs.close()
                     
-            except:
-                logger.error("main error(2)")
+            except Exception as inst:
+                logger.error("main error(2): " + str(inst))
 
 
 if __name__ == '__main__':
