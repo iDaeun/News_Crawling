@@ -26,6 +26,10 @@ def getId(bl_link):
     parts = bl_link.split('/')
     article_id = parts[len(parts)-1]
 
+    if len(article_id) > 100:
+        split = article_id[0:100]
+        return split
+
     return article_id
 
 # 시간 추출
@@ -40,7 +44,7 @@ def parseTime(bl_getTime):
         return bl_published_time
     
     except:
-        return "none"
+        return None
 
 def getTime(bl_time):
     if bl_time.get("content"):
@@ -49,7 +53,7 @@ def getTime(bl_time):
         return bl_published_time
     
     else:
-        return "none"
+        return None
 
 # url 열기
 def openurl(url):
@@ -99,7 +103,7 @@ def openurl(url):
 # DB입력
 def insert(conn, curs, bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id):
 
-    sql = 'INSERT INTO crawlingDB (stand_title, article_title, link, crawling_time, published_time, mediacode, category, article_id) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE stand_title = %s'
+    sql = 'INSERT INTO R_MEDIA_CHANNEL (CH_STAND_NAME, CH_ARTICLE_NAME, CH_LINK, CRAWLING_DT, PUBLISHED_DT, MEDIA_CHANNEL_CD, MEDIA_CATEGORY, CH_ARTICLE_ID) VALUES (%s, %s, %s, now(), %s, %s, %s, %s) ON DUPLICATE KEY UPDATE CH_STAND_NAME = %s'
     data = (bl_title, article_title, bl_link, bl_published_time, bl_mediacode, category, article_id, bl_title)
     curs.execute(sql, data)
     print("@@ 데이터 입력 @@")
@@ -122,14 +126,13 @@ def main(args, logger):
                     conn = pymysql.connect(host=TargetConfig.DB_HOST, user=TargetConfig.DB_USER, password=TargetConfig.DB_PW, db=TargetConfig.DB_NAME, charset='utf8')
                     curs = conn.cursor()
 
-                    sql = 'SELECT mediacode FROM newsListRequested' 
+                    sql = 'SELECT MEDIA_CHANNEL_CD FROM R_MEDIA_CHANNEL_CODE' 
                     curs.execute(sql)
                     cateList = curs.fetchall()
                     
                     # 1. 미디어코드 [mediacode] 
                     for cate in cateList:
                         print("-- newsList에서 하나씩 가져오기 : " + cate[0])
-                        sleep(1)
                         bl_mediacode = cate[0]
 
                         # -- 데이터 추출 -- 
@@ -177,7 +180,7 @@ def main(args, logger):
 
                                             if soup3.find("meta", property="article:published_time"):
                                                 bl_time = soup3.find("meta", property="article:published_time")
-                                                bl_published_time = media.segye(bl_time) if bl_mediacode == '022' else getTime(bl_time)
+                                                bl_published_time = media.segye(soup3) if bl_mediacode == '022' else getTime(bl_time)
                                             
                                             elif soup3.find("meta", property="article:published"):
                                                 bl_time = soup3.find("meta", property="article:published")
@@ -216,7 +219,7 @@ def main(args, logger):
                                             else:
                                                 article_id = getId(bl_link)
 
-                                            print("발행 시간 : " + bl_published_time)
+                                            print("발행 시간 : ", str(bl_published_time))
                                             print("분류 : " + category)
                                             print("기사 아이디 : " + article_id)
 
@@ -274,7 +277,7 @@ def main(args, logger):
                                             if db == True:
                                                 article_id = getId(bl_link)
 
-                                                print("발행 시간 : " + bl_published_time)
+                                                print("발행 시간 : ", str(bl_published_time))
                                                 print("분류 : " + category)
                                                 print("기사 아이디 : " + article_id)
 
@@ -283,18 +286,18 @@ def main(args, logger):
 
                                 print("--------------------")
 
-                    print("- - - - - - - 10초 스톱")
-                    sleep(10)
-                    print("- - - - - - - - - 시작")
+                print("- - - - - - - 10초 스톱")
+                sleep(10)
+                print("- - - - - - - - - 시작")
 
-                    # interval 1분으로 돌려보기
-                    sql = 'DELETE FROM crawlingDB WHERE crawling_time <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
-                    result = curs.execute(sql)
-                    if result > 0:
-                        print("@@@@@@ deleted @@@@@@@")
-                    conn.commit()
+                # interval 1분으로 돌려보기
+                sql = 'DELETE FROM R_MEDIA_CHANNEL WHERE CRAWLING_DT <= DATE_SUB(now(), INTERVAL 1 MINUTE)'
+                result = curs.execute(sql)
+                if result > 0:
+                    print("@@@@@@ deleted @@@@@@@")
+                conn.commit()
 
-                    curs.close()
+                curs.close()
                     
             except Exception as inst:
                 logger.error("main error(2): " + str(inst))

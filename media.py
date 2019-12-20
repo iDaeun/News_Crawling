@@ -56,11 +56,13 @@ def munhwa(soup3):
         if re.search(r'게재 일자 : (.*)', td.get_text()):
             match = re.search(r'게재 일자 : (.*)', td.get_text())
             date2 = match.group(0).split(":")[1]
+            date3 = date2.strip()
+            date4 = date3[0:4] + "-" + date3[6:8] + "-" + date3[10:12] + " 00:00:00" 
 
     cate1 = soup3.find("a", class_="d14b_2F5").get_text()
     cate2 = cate1.split("[")[1].split(']')[0]
 
-    return [date2, cate2]
+    return [date4, cate2]
 
 # 031 아이뉴스24
 # 분류 : inews-www-hover active
@@ -84,7 +86,7 @@ def hkilbo(soup3):
                 cate = '연예'
             # 2) 포토갤러리
             else:
-                return ['--', '포토갤러리']
+                return [None, '포토갤러리']
             
             for metas in soup3.find_all('meta'):
                 if 'name' in metas.attrs and metas.attrs['name'] == 'hk:nw_newsoutdt':
@@ -94,14 +96,19 @@ def hkilbo(soup3):
                     return [date2, cate]
 
 # 022 세계일보
-def segye(bl_time):
-    bl_parsed = bl_time["content"]
-    parts1 = bl_parsed.split('T')
-    yr = parts1[0]
-    parts2 = parts1[1].split('+')
-    time = parts2[0]
+def segye(soup3):
+    time1 = soup3.find("p", class_="viewInfo").get_text()
+    time2 = time1.split(": ")
+    time3 = time2[1].split(" 수")
+    time4 = time3[0]
 
-    return yr + " " + time
+    # bl_parsed = bl_time["content"]
+    # parts1 = bl_parsed.split('T')
+    # yr = parts1[0]
+    # parts2 = parts1[1].split('+')
+    # time = parts2[0]
+
+    return time4
 
 # 903 채널에이
 # 날짜: <span class="date"><span>[채널A]</span> 2019-12-16 13:23</span>
